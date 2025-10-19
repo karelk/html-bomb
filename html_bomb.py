@@ -35,22 +35,35 @@ def handle_client(conn, addr):
             url = request.split(' ')[1]
         except:
             url = "?"
-            
-        response = (
-            b"HTTP/1.1 200 OK\r\n"
-            b"Content-Type: text/html\r\n"
-            b"Content-Encoding: gzip\r\n"
-            b"Content-Length: " + str(len(BOMB)).encode() + b"\r\n"
-            b"\r\n"
-        )
-        conn.sendall(response + BOMB)
-        print(hostname + " " + url + " bombed")
+        
+        # Serve robots.txt to well-behaved crawlers
+        if url == "/robots.txt":
+            robots = b"User-agent: *\nDisallow: /\n"
+            response = (
+                b"HTTP/1.1 200 OK\r\n"
+                b"Content-Type: text/plain\r\n"
+                b"Content-Length: " + str(len(robots)).encode() + b"\r\n"
+                b"\r\n"
+            )
+            conn.sendall(response + robots)
+            print(f"{addr[0]:<16}   {hostname:<40} \033[96m{url}\033[0m \033[1;92m✓\033[0m")
+        else:
+            # Bomb malicious scanners who ignore robots.txt
+            response = (
+                b"HTTP/1.1 200 OK\r\n"
+                b"Content-Type: text/html\r\n"
+                b"Content-Encoding: gzip\r\n"
+                b"Content-Length: " + str(len(BOMB)).encode() + b"\r\n"
+                b"\r\n"
+            )
+            conn.sendall(response + BOMB)
+            print(f"{addr[0]:<16}   {hostname:<40} \033[96m{url}\033[0m \033[1;91m✗\033[0m")
     except (ConnectionResetError, BrokenPipeError):
-        print(hostname + " disconnected")
+        print(f"{addr[0]:<16}   {hostname:<40} \033[1;33m·\033[0m")
     except socket.timeout:
-        print(hostname + " timeout")
+        print(f"{addr[0]:<16}   {hostname:<40} \033[1;33m·\033[0m")
     except:
-        print(hostname + " failed")
+        print(f"{addr[0]:<16}   {hostname:<40} \033[1;33m·\033[0m")
     finally:
         conn.close()
 
@@ -70,12 +83,11 @@ def run_server(port, use_ssl=False):
     
     while True:
         conn, addr = sock.accept()
-        print(addr[0], end=" ", flush=True)
         if context:
             try:
                 conn = context.wrap_socket(conn, server_side=True)
             except:
-                print("ssl-failed")
+                print(f"{addr[0]:<16}   ssl-failed")
                 conn.close()
                 continue
         threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
